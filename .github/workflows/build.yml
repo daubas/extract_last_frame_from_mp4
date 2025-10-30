@@ -1,0 +1,57 @@
+
+name: Build Executables
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m venv venv
+        # Activation is different on Windows vs. macOS/Linux, but we can call pip directly.
+        # This makes the script cross-platform.
+        ./venv/bin/pip install -r requirements.txt
+        ./venv/bin/pip install pyinstaller
+      shell: bash
+      if: matrix.os != 'windows-latest'
+
+    - name: Install dependencies (Windows)
+      run: |
+        python -m venv venv
+        .\venv\Scripts\pip install -r requirements.txt
+        .\venv\Scripts\pip install pyinstaller
+      shell: powershell
+      if: matrix.os == 'windows-latest'
+
+    - name: Run PyInstaller (macOS/Linux)
+      run: ./venv/bin/pyinstaller --onefile --name extract_frame extract_frame.py
+      if: matrix.os != 'windows-latest'
+
+    - name: Run PyInstaller (Windows)
+      run: .\venv\Scripts\pyinstaller --onefile --name extract_frame extract_frame.py
+      if: matrix.os == 'windows-latest'
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: extract_frame-${{ matrix.os }}
+        path: |
+          dist/
